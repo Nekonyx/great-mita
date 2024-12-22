@@ -1,4 +1,4 @@
 {
   "name": "great-mita",
-  "script": "./build/index.js"
+  "script": "./build/main.js"
 }
