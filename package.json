@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+		"start": "node build",
+    "start:dev": "tsx src/main.ts",
+		"watch": "tsx --watch src/main.ts",
+    "build": "tsc",
+    "db:cli": "drizzle-kit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.30.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.38.2"
+  }
+}

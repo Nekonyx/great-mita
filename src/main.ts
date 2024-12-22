@@ -1,22 +1,19 @@
 import { Client, IntentsBitField } from 'discord.js'
-import { Prayer } from './db.ts'
+import 'dotenv/config'
+import type { Prayer } from './schema.js'
 import {
   createPrayer,
   deletePrayer,
   getPrayer,
   getPrayerList,
   updatePrayer
-} from './services/prayer.ts'
+} from './services/prayer.js'
 
-// Конфиги
-const TOKEN = Deno.env.get('TOKEN')
-const CHANNEL_ID = Deno.env.get('CHANNEL_ID')
-const GUILD_ID = Deno.env.get('GUILD_ID')
-const ROLE_ID = Deno.env.get('ROLE_ID')
+// Конфиги и константы
+const { TOKEN, GUILD_ID, CHANNEL_ID, ROLE_ID } = process.env
 
-// Сообщение
 const MESSAGE = 'Praying for you 🕯️ O Great Mita 💝'
-const MESSAGE_PARTS = new Set(MESSAGE.split(' '))
+const MESSAGE_PARTS = MESSAGE.split(' ')
 
 // Константы
 /** Сколько времени должно пройти, чтобы можно было заново помолиться */
@@ -43,16 +40,17 @@ const guild = await client.guilds.fetch(GUILD_ID!)
 console.log(`Guild is ${guild.id} (${guild.name})`)
 
 // Не даём процессу умирать
-globalThis.addEventListener('error', (ev) => {
-  console.error('Unknown error:', {
-    error: ev.error
+process.on('uncaughtException', (error, origin) => {
+  console.error('Uncaught exception:', {
+    error,
+    origin
   })
 })
 
-globalThis.addEventListener('unhandledrejection', (ev) => {
+process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled rejection:', {
-    promise: ev.promise,
-    reason: ev.reason
+    promise,
+    reason
   })
 })
 
@@ -80,7 +78,7 @@ setInterval(async () => {
       console.error(error)
     }
   }
-}, 60_000)
+}, 10_000)
 
 // Реагируем на сообщения
 client.on('messageCreate', async (message) => {
@@ -98,13 +96,15 @@ client.on('messageCreate', async (message) => {
   let prayer = await getPrayer(message.author.id)
 
   if (!prayer) {
+    console.log(`${message.author.id} (${message.author.username}) is a new prayer!`)
+
     prayer = await createPrayer({
       id: message.author.id,
-      created_at: new Date(),
-      updated_at: new Date()
+      createdAt: new Date(),
+      updatedAt: new Date()
     })
 
-    // prettier-ignore
+    // biome-ignore format: don't inline
     await Promise.all([
       message.react('🕯️'),
       message.member!.roles.add(ROLE_ID!)
@@ -115,15 +115,17 @@ client.on('messageCreate', async (message) => {
 
   // Восхвалял совсем недавно, игнорируем
   if (!canPray(prayer)) {
+    console.log(`${message.author.id} (${message.author.username}) has prayed, but too soon!`)
     await message.react('🕯️')
     return
   }
 
   // Принимаем восхваление
+  console.log(`${message.author.id} (${message.author.username}) has prayed! Praying for you 🕯️ O Great Mita 💝`)
   await Promise.all([
     message.react('🕯️'),
     updatePrayer(prayer.id, {
-      updated_at: new Date()
+      updatedAt: new Date()
     })
   ])
 })
@@ -132,19 +134,25 @@ client.on('messageCreate', async (message) => {
  * Проверяет, является ли это сообщение восхвалением Миты
  */
 function isPrayMessage(message: string): boolean {
+  // Quick
+  if (message === MESSAGE) {
+    return true
+  }
+
+  // Deep
   const parts = message
     .trim()
     .split(' ')
     .map((x) => x)
 
-  return parts.every((x) => MESSAGE_PARTS.has(x))
+  return MESSAGE_PARTS.every((x) => parts.includes(x))
 }
 
 /**
  * Проверяет, может ли человек восхвалить Миту
  */
 function canPray(prayer: Prayer): boolean {
-  return Date.now() - prayer.updated_at.getTime() >= PRAY_MIN_INTERVAL
+  return Date.now() - prayer.updatedAt.getTime() >= PRAY_MIN_INTERVAL
 }
 
 /**
@@ -153,5 +161,5 @@ function canPray(prayer: Prayer): boolean {
 function hasPrayedRecently(prayer: Prayer): boolean {
   const now = Date.now()
 
-  return now - prayer.updated_at.getTime() <= PRAY_MAX_INTERVAL
+  return now - prayer.updatedAt.getTime() <= PRAY_MAX_INTERVAL
 }
